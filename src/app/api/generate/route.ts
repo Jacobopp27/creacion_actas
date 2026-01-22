@@ -156,8 +156,11 @@ export async function POST(request: NextRequest) {
       .replace(/\s+/g, ' ')
       .trim();
 
+    // Convertir Buffer a Uint8Array para compatibilidad con Vercel
+    const uint8Array = new Uint8Array(buffer);
+
     // Retornar el archivo
-    return new NextResponse(buffer, {
+    return new NextResponse(uint8Array, {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${sanitizedFilename}"`,
