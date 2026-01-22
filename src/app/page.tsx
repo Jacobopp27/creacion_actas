@@ -6,9 +6,11 @@ export default function Home() {
   const [jsonInput, setJsonInput] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleGenerate = async () => {
     setError('');
+    setSuccess(false);
     setLoading(true);
 
     try {
@@ -46,6 +48,9 @@ export default function Home() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 5000);
+
     } catch (err) {
       if (err instanceof SyntaxError) {
         setError('JSON inválido. Por favor verifica el formato.');
@@ -57,40 +62,176 @@ export default function Home() {
     }
   };
 
+  const handleClear = () => {
+    setJsonInput('');
+    setError('');
+    setSuccess(false);
+  };
+
+  const exampleJson = {
+    naming: {
+      filename: "AC19012026 Seguimiento Medellin.docx"
+    },
+    contenido: {
+      // ... ejemplo de estructura
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white shadow rounded-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">
-            Generador de Actas
-          </h1>
-          
-          <div className="mb-4">
-            <label htmlFor="jsonInput" className="block text-sm font-medium text-gray-700 mb-2">
-              Pega el JSON aquí:
-            </label>
-            <textarea
-              id="jsonInput"
-              value={jsonInput}
-              onChange={(e) => setJsonInput(e.target.value)}
-              className="w-full h-96 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-              placeholder='{"naming": {"filename": "AC19012026 Seguimiento Medellin.docx"}, "contenido": {...}}'
-            />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-3 rounded-xl shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Generador de Actas</h1>
+              <p className="text-sm text-gray-600 mt-1">Transforma tus datos JSON en documentos Word profesionales</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Left Column - Instructions */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                ¿Cómo usar?
+              </h2>
+              <ol className="space-y-3 text-sm text-gray-600">
+                <li className="flex items-start gap-2">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-semibold">1</span>
+                  <span>Pega tu JSON en el área de texto</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-semibold">2</span>
+                  <span>Verifica que el formato sea válido</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-semibold">3</span>
+                  <span>Haz clic en "Generar Documento"</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-semibold">4</span>
+                  <span>Tu documento se descargará automáticamente</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg p-6 text-white">
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Características
+              </h3>
+              <ul className="space-y-2 text-sm opacity-90">
+                <li>✓ Generación instantánea</li>
+                <li>✓ Formato Word (.docx)</li>
+                <li>✓ Plantillas personalizables</li>
+                <li>✓ Validación automática</li>
+              </ul>
+            </div>
           </div>
 
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          )}
+          {/* Right Column - JSON Editor */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="jsonInput" className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                    Editor JSON
+                  </label>
+                  {jsonInput && (
+                    <button
+                      onClick={handleClear}
+                      className="text-xs text-gray-600 hover:text-gray-900 font-medium px-3 py-1.5 rounded-lg hover:bg-white transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <textarea
+                  id="jsonInput"
+                  value={jsonInput}
+                  onChange={(e) => setJsonInput(e.target.value)}
+                  className="w-full h-[500px] px-4 py-3 border-2 border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm bg-gray-50 hover:bg-white transition-colors resize-none"
+                  placeholder={JSON.stringify(exampleJson, null, 2)}
+                />
+              </div>
 
-          <button
-            onClick={handleGenerate}
-            disabled={loading || !jsonInput.trim()}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium transition-colors"
-          >
-            {loading ? 'Generando documento...' : 'Generar documento'}
-          </button>
+              {/* Status Messages */}
+              <div className="px-6 pb-6 space-y-3">
+                {error && (
+                  <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-lg animate-in slide-in-from-top">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm text-red-800 font-medium">{error}</p>
+                    </div>
+                  </div>
+                )}
+
+                {success && (
+                  <div className="p-4 bg-green-50 border-l-4 border-green-500 rounded-lg animate-in slide-in-from-top">
+                    <div className="flex items-center gap-3">
+                      <svg className="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm text-green-800 font-medium">¡Documento generado exitosamente!</p>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleGenerate}
+                  disabled={loading || !jsonInput.trim()}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 px-6 rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed font-semibold transition-all shadow-lg hover:shadow-xl disabled:shadow-none transform hover:scale-[1.02] disabled:transform-none flex items-center justify-center gap-3 text-lg"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Generando documento...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                      </svg>
+                      <span>Generar Documento</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center text-sm text-gray-500">
+          <p>Generador de Actas · Next.js 14 + docxtemplater</p>
         </div>
       </div>
     </div>
