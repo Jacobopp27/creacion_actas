@@ -1,36 +1,167 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Generador de Actas - Next.js
 
-## Getting Started
+Aplicación Next.js 14 para generar documentos Word (.docx) desde JSON usando plantillas.
 
-First, run the development server:
+## 🚀 Instalación
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📝 Configuración de la Plantilla
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Crea tu plantilla Word en `/templates/acta_ac_template.docx`
+2. Usa los siguientes placeholders en tu plantilla:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Campos simples:
+```
+{{codigo_reunion}}
+{{tipo_reunion}}
+{{fecha_reunion}}
+{{organismo}}
+{{fecha_elaboracion}}
+{{asistentes_texto}}
+{{ausentes_texto}}
+{{lectura_acta_anterior}}
+{{temas_tratados_texto}}
+{{proposiciones_y_varios}}
+{{nombre_elabora}}
+{{nombre_revisa}}
+```
 
-## Learn More
+### Tablas con loops:
 
-To learn more about Next.js, take a look at the following resources:
+**Compromisos Anteriores:**
+```
+{#compromisos_anteriores}
+{{no}} | {{compromiso}} | {{responsable}} | {{fecha_logro}} | {{estado}}
+{/compromisos_anteriores}
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Compromisos Pactados:**
+```
+{#compromisos_pactados}
+{{no}} | {{compromiso}} | {{responsable}} | {{fecha_logro}} | {{resultado}}
+{/compromisos_pactados}
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📋 Formato del JSON
 
-## Deploy on Vercel
+```json
+{
+  "naming": {
+    "filename": "AC19012026 Seguimiento Medellin.docx"
+  },
+  "contenido": {
+    "codigo_reunion": "AC-001",
+    "tipo_reunion": "Seguimiento",
+    "fecha_reunion": "19/01/2026",
+    "organismo": "Comité Ejecutivo",
+    "fecha_elaboracion": "21/01/2026",
+    "asistentes_texto": "Juan Pérez, María García, Carlos López",
+    "ausentes_texto": "Ana Martínez (Justificada)",
+    "lectura_acta_anterior": "Se aprueba el acta anterior sin modificaciones",
+    "temas_tratados_texto": "1. Revisión de presupuesto\n2. Aprobación de proyectos\n3. Varios",
+    "proposiciones_y_varios": "Se propone aumentar el presupuesto en un 10%",
+    "nombre_elabora": "Juan Pérez",
+    "nombre_revisa": "María García",
+    "compromisos_anteriores": [
+      {
+        "no": 1,
+        "compromiso": "Actualizar sistema",
+        "responsable": "TI",
+        "fecha_logro": "30/01/2026",
+        "estado": "En progreso"
+      }
+    ],
+    "compromisos_pactados": [
+      {
+        "no": 1,
+        "compromiso": "Preparar informe financiero",
+        "responsable": "Contabilidad",
+        "fecha_logro": "15/02/2026",
+        "resultado": "Pendiente"
+      }
+    ]
+  }
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Nota:** Si `compromisos_anteriores` o `compromisos_pactados` están vacíos, se insertará automáticamente una fila con "NO APLICA".
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🖥️ Uso
+
+### Desarrollo:
+```bash
+npm run dev
+```
+
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+
+### Producción:
+```bash
+npm run build
+npm start
+```
+
+## 🌐 Deploy en Vercel
+
+1. Sube tu código a GitHub
+2. Conecta tu repositorio en [Vercel](https://vercel.com)
+3. **Importante:** Sube tu plantilla `acta_ac_template.docx` al directorio `/templates/` antes de hacer deploy
+
+### Estructura de archivos:
+```
+creacion_actas/
+├── src/
+│   └── app/
+│       ├── page.tsx              # UI principal
+│       └── api/
+│           └── generate/
+│               └── route.ts      # Endpoint para generar documentos
+├── templates/
+│   └── acta_ac_template.docx     # Tu plantilla Word
+├── package.json
+└── README.md
+```
+
+## 🔧 Tecnologías
+
+- **Next.js 14** (App Router)
+- **TypeScript**
+- **Tailwind CSS**
+- **docxtemplater** - Generación de documentos
+- **pizzip** - Manejo de archivos ZIP/DOCX
+
+## ⚠️ Requisitos
+
+- Node.js 18+
+- La plantilla `acta_ac_template.docx` debe existir en `/templates/`
+
+## 📦 Dependencias principales
+
+```json
+{
+  "docxtemplater": "^3.55.6",
+  "pizzip": "^3.1.7"
+}
+```
+
+## 🐛 Solución de problemas
+
+1. **Error: "No se encontró la plantilla"**
+   - Verifica que `/templates/acta_ac_template.docx` existe
+   - Asegúrate de que el archivo se incluye en el deploy
+
+2. **JSON inválido**
+   - Verifica que tu JSON tenga el formato correcto
+   - Usa un validador JSON online
+
+3. **Error al generar documento**
+   - Revisa que todos los placeholders en la plantilla coincidan con el JSON
+   - Verifica que los loops estén correctamente cerrados
+
+## 📄 Licencia
+
+MIT
+

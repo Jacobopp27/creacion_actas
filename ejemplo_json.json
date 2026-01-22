@@ -1,0 +1,51 @@
+{
+  "naming": {
+    "filename": "AC19012026_Seguimiento_Medellin.docx"
+  },
+  "contenido": {
+    "codigo_reunion": "AC-001-2026",
+    "tipo_reunion": "Seguimiento",
+    "fecha_reunion": "19/01/2026",
+    "organismo": "Comité Ejecutivo Medellín",
+    "fecha_elaboracion": "21/01/2026",
+    "asistentes_texto": "Juan Pérez, María García, Carlos López",
+    "ausentes_texto": "Ana Martínez (Justificada)",
+    "lectura_acta_anterior": "Se aprueba el acta anterior sin modificaciones",
+    "temas_tratados_texto": "1. Revisión de presupuesto\n2. Aprobación de proyectos nuevos\n3. Varios",
+    "proposiciones_y_varios": "Se propone aumentar el presupuesto operativo en un 10% para el próximo trimestre",
+    "nombre_elabora": "Juan Pérez",
+    "nombre_revisa": "María García",
+    "compromisos_anteriores": [
+      {
+        "no": 1,
+        "compromiso": "Actualizar sistema de información",
+        "responsable": "Departamento TI",
+        "fecha_logro": "30/01/2026",
+        "estado": "En progreso"
+      },
+      {
+        "no": 2,
+        "compromiso": "Revisar contratos vigentes",
+        "responsable": "Área Legal",
+        "fecha_logro": "15/02/2026",
+        "estado": "Pendiente"
+      }
+    ],
+    "compromisos_pactados": [
+      {
+        "no": 1,
+        "compromiso": "Preparar informe financiero Q1",
+        "responsable": "Contabilidad",
+        "fecha_logro": "15/02/2026",
+        "resultado": "Pendiente"
+      },
+      {
+        "no": 2,
+        "compromiso": "Capacitación personal nuevo",
+        "responsable": "RRHH",
+        "fecha_logro": "28/02/2026",
+        "resultado": "Pendiente"
+      }
+    ]
+  }
+}
