@@ -7,6 +7,45 @@ export default function Home() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [normalizedJsonText, setNormalizedJsonText] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  /**
+   * normalizeJsonText
+   * - Reemplaza comillas tipográficas por comillas rectas
+   * - Reemplaza comillas simples tipográficas por comillas simples rectas
+   * - Reemplaza guion largo/en-dash (–, —) por '-' solo dentro de keys (strings seguidos de `:`)
+   * - No altera tildes ni la letra `ñ`
+   * - No borra saltos de línea
+   *
+   * Ejemplos (tests en comentarios):
+   * - “naming”  => "naming"
+   * - '‘clave–con–guion’:' => '"clave-con-guion":' (guiones en keys se normalizan)
+   * - ...\"taquillero\"...  => debe permanecer con escapes tal cual
+   */
+  const normalizeJsonText = (input: string): string => {
+    if (!input) return input;
+
+    // 1) Reemplazar comillas tipográficas dobles y simples por rectas
+    let text = input.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'");
+
+    // 2) Reemplazar guiones largos/en-dash dentro de keys (strings seguidos por :) por '-' 
+    // Esto evita tocar guiones que formen parte del contenido textual donde no causan problemas.
+    try {
+      text = text.replace(/(["'])(.*?)\1(?=\s*:)/gs, (match, quote, inner) => {
+        const replaced = inner.replace(/[\u2013\u2014]/g, '-');
+        return `${quote}${replaced}${quote}`;
+      });
+    } catch (e) {
+      // En entornos donde no se soporta la flag 's', fallback más simple
+      text = text.replace(/(["'])(.*?)\1(?=\s*:)/g, (match: string, quote: string, inner: string) => {
+        const replaced = inner.replace(/[\u2013\u2014]/g, '-');
+        return `${quote}${replaced}${quote}`;
+      });
+    }
+
+    return text;
+  };
 
   const handleGenerate = async () => {
     setError('');
@@ -14,8 +53,19 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // Validar JSON
-      const parsedJson = JSON.parse(jsonInput);
+      // Normalizar texto pegado (iPhone/Word suelen traer comillas tipográficas)
+      const normalized = normalizeJsonText(jsonInput);
+      setNormalizedJsonText(normalized);
+
+      // Intentar parsear el JSON ya normalizado
+      let parsedJson: any;
+      try {
+        parsedJson = JSON.parse(normalized);
+      } catch (parseErr) {
+        setError('JSON inválido. Texto normalizado disponible para copiar.');
+        setLoading(false);
+        return;
+      }
 
       // Llamar al API
       const response = await fetch('/api/generate', {
@@ -66,6 +116,17 @@ export default function Home() {
     setJsonInput('');
     setError('');
     setSuccess(false);
+  };
+
+  const copyNormalizedToClipboard = async () => {
+    if (!normalizedJsonText) return;
+    try {
+      await navigator.clipboard.writeText(normalizedJsonText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      setError('No se pudo copiar al portapapeles');
+    }
   };
 
   const exampleJson = {
@@ -186,6 +247,17 @@ export default function Home() {
                       </svg>
                       <p className="text-sm text-red-800 font-medium">{error}</p>
                     </div>
+                    {normalizedJsonText && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <button
+                          onClick={copyNormalizedToClipboard}
+                          className="px-3 py-1.5 bg-white text-sm rounded-md border border-gray-200 text-gray-800 hover:bg-gray-50"
+                        >
+                          Copiar JSON normalizado
+                        </button>
+                        {copied && <span className="text-sm text-green-700 font-medium">Copiado</span>}
+                      </div>
+                    )}
                   </div>
                 )}
 
