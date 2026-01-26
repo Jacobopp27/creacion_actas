@@ -21,12 +21,11 @@ interface Contenido {
   fecha_elaboracion: string;
   asistentes_texto: string;
   ausentes_texto: string;
-  lectura_acta_anterior: string;
+  orden_del_dia: string[];
   temas_tratados_texto: string;
   proposiciones_y_varios: string;
   nombre_elabora: string;
   nombre_revisa: string;
-  compromisos_anteriores: Compromiso[];
   compromisos_pactados: Compromiso[];
 }
 
@@ -51,10 +50,16 @@ export async function POST(request: NextRequest) {
 
     // Leer la plantilla
     const templatePath = join(process.cwd(), 'templates', 'acta_ac_template.docx');
+    
+    console.info('\n📄 PLANTILLA DOCX:');
+    console.info('Ruta:', templatePath);
+    
     let content: Buffer;
     
     try {
       content = readFileSync(templatePath);
+      console.info(`Tamaño: ${content.length} bytes (${(content.length / 1024).toFixed(2)} KB)`);
+      console.info('✓ Cargada correctamente\n');
     } catch (error) {
       return NextResponse.json(
         { error: 'No se encontró la plantilla. Asegúrate de que existe /templates/acta_ac_template.docx' },
@@ -62,33 +67,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Preparar datos con valores por defecto si vienen vacíos
+    // Preparar datos - SOLO campos de la nueva estructura
     const data = {
-      ...body.contenido,
-      compromisos_anteriores: body.contenido.compromisos_anteriores?.length > 0
-        ? body.contenido.compromisos_anteriores
-        : [{
-            no: '-',
-            compromiso: 'NO APLICA',
-            responsable: '-',
-            fecha_logro: '-',
-            estado: '-'
-          }],
-      compromisos_pactados: body.contenido.compromisos_pactados?.length > 0
+      codigo_reunion: body.contenido.codigo_reunion || '',
+      tipo_reunion: body.contenido.tipo_reunion || '',
+      fecha_reunion: body.contenido.fecha_reunion || '',
+      organismo: body.contenido.organismo || '',
+      fecha_elaboracion: body.contenido.fecha_elaboracion || '',
+      asistentes_texto: body.contenido.asistentes_texto || '',
+      ausentes_texto: body.contenido.ausentes_texto || '',
+      orden_del_dia: Array.isArray(body.contenido.orden_del_dia) 
+        ? body.contenido.orden_del_dia.map((item, index) => 
+            `${index + 1}. ${item}`
+          )
+        : [],
+      temas_tratados_texto: body.contenido.temas_tratados_texto || '',
+      proposiciones_y_varios: body.contenido.proposiciones_y_varios || '',
+      compromisos_pactados: Array.isArray(body.contenido.compromisos_pactados) && body.contenido.compromisos_pactados.length > 0
         ? body.contenido.compromisos_pactados
-        : [{
-            no: '-',
-            compromiso: 'NO APLICA',
-            responsable: '-',
-            fecha_logro: '-',
-            resultado: '-'
-          }]
+        : [],
+      nombre_elabora: body.contenido.nombre_elabora || '',
+      nombre_revisa: body.contenido.nombre_revisa || ''
     };
 
-    console.log('\n📋 DATOS QUE SE ENVIARÁN A LA PLANTILLA:');
-    console.log('Compromisos anteriores:', JSON.stringify(data.compromisos_anteriores, null, 2));
-    console.log('Compromisos pactados:', JSON.stringify(data.compromisos_pactados, null, 2));
-    console.log('');
+    console.log('\n📋 DATOS:');
+    console.log('Orden del día:', data.orden_del_dia);
+    console.log('Compromisos pactados:', data.compromisos_pactados.length, 'items\n');
 
     // Cargar el documento con PizZip
     const zip = new PizZip(content);
