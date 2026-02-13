@@ -40,10 +40,23 @@ export async function POST(request: NextRequest) {
   try {
     const body: RequestBody = await request.json();
 
-    // Validar estructura del JSON
-    if (!body.naming?.filename || !body.contenido) {
+    // Validar naming.filename (SIEMPRE obligatorio)
+    if (!body.naming?.filename) {
       return NextResponse.json(
-        { error: 'Estructura JSON inválida. Se requiere naming.filename y contenido.' },
+        { error: 'Estructura JSON inválida. El campo "naming.filename" es obligatorio.' },
+        { status: 400 }
+      );
+    }
+
+    // Detectar prefijo del archivo (primeras 2 letras del filename)
+    const filename = body.naming.filename;
+    const prefijo = filename.substring(0, 2).toUpperCase();
+
+    // Validar contenido SOLO si es AC o ACTA_REUNION
+    const requiresContent = prefijo === 'AC' || (body as any).tipo_archivo === 'ACTA_REUNION';
+    if (requiresContent && !body.contenido) {
+      return NextResponse.json(
+        { error: 'El campo "contenido" es obligatorio para actas de reunión (prefijo AC o tipo_archivo ACTA_REUNION).' },
         { status: 400 }
       );
     }

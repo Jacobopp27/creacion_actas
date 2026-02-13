@@ -47,26 +47,169 @@ export default function Home() {
     return text;
   };
 
+  /**
+   * extractJsonFromText
+   * - Extrae JSON de texto que puede contener prefijos/sufijos
+   * - Busca el primer { y el último } para aislar el JSON
+   * - Ignora texto externo, markdown fences, etc.
+   */
+  const extractJsonFromText = (input: string): string => {
+    if (!input) return input;
+
+    // Buscar el primer { y el último }
+    const firstBrace = input.indexOf('{');
+    const lastBrace = input.lastIndexOf('}');
+
+    if (firstBrace === -1 || lastBrace === -1 || firstBrace >= lastBrace) {
+      return input; // No hay JSON detectado, devolver original
+    }
+
+    return input.substring(firstBrace, lastBrace + 1);
+  };
+
+  /**
+   * sanitizeJsonString
+   * - Elimina BOM (Byte Order Mark)
+   * - Elimina caracteres zero-width invisibles
+   * - Normaliza saltos de línea a \n
+   */
+  const sanitizeJsonString = (input: string): string => {
+    if (!input) return input;
+
+    let text = input;
+
+    // 1) Eliminar BOM (U+FEFF)
+    text = text.replace(/^\uFEFF/, '');
+
+    // 2) Eliminar caracteres zero-width invisibles
+    text = text.replace(/[\u200B-\u200D\uFEFF]/g, '');
+
+    // 3) Normalizar saltos de línea a \n
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    return text;
+  };
+
+  /**
+   * parseJsonRobust
+   * - Parsea JSON con tolerancia a errores comunes
+   * - Intenta parseo en dos fases (para manejar double-stringified JSON)
+   */
+  const parseJsonRobust = (jsonString: string): any => {
+    // Primera fase: parseo normal
+    let parsed = JSON.parse(jsonString);
+
+    // Segunda fase: si el resultado es un string que parece JSON, parsear otra vez
+    if (typeof parsed === 'string' && parsed.trim().startsWith('{')) {
+      parsed = JSON.parse(parsed);
+    }
+
+    return parsed;
+  };
+
+  /**
+   * getErrorContext
+   * - Extrae un snippet del JSON cerca de donde ocurrió el error
+   * - Útil para debugging
+   */
+  const getErrorContext = (jsonString: string, error: SyntaxError): string => {
+    const errorMessage = error.message;
+    
+    // Intentar extraer la posición del error
+    const positionMatch = errorMessage.match(/position (\d+)/);
+    if (positionMatch) {
+      const position = parseInt(positionMatch[1], 10);
+      const start = Math.max(0, position - 50);
+      const end = Math.min(jsonString.length, position + 50);
+      const snippet = jsonString.substring(start, end);
+      return `\n\nContexto cerca del error:\n...${snippet}...`;
+    }
+
+    // Si no se puede extraer posición, mostrar las primeras líneas
+    const lines = jsonString.split('\n').slice(0, 5);
+    return `\n\nPrimeras líneas del JSON:\n${lines.join('\n')}...`;
+  };
+
+  /**
+   * detectIncompleteJson
+   * - Verifica si el JSON está truncado o incompleto
+   */
+  const detectIncompleteJson = (jsonString: string): string | null => {
+    const openBraces = (jsonString.match(/{/g) || []).length;
+    const closeBraces = (jsonString.match(/}/g) || []).length;
+    const openBrackets = (jsonString.match(/\[/g) || []).length;
+    const closeBrackets = (jsonString.match(/]/g) || []).length;
+
+    if (openBraces > closeBraces) {
+      return `JSON incompleto: faltan ${openBraces - closeBraces} llaves de cierre }`;
+    }
+    if (closeBraces > openBraces) {
+      return `JSON mal formado: ${closeBraces - openBraces} llaves de cierre } de más`;
+    }
+    if (openBrackets > closeBrackets) {
+      return `JSON incompleto: faltan ${openBrackets - closeBrackets} corchetes de cierre ]`;
+    }
+    if (closeBrackets > openBrackets) {
+      return `JSON mal formado: ${closeBrackets - openBrackets} corchetes de cierre ] de más`;
+    }
+
+    return null;
+  };
+
   const handleGenerate = async () => {
     setError('');
     setSuccess(false);
     setLoading(true);
 
     try {
-      // Normalizar texto pegado (iPhone/Word suelen traer comillas tipográficas)
-      const normalized = normalizeJsonText(jsonInput);
+      // FASE 1: Extraer JSON de texto que puede contener prefijos/sufijos
+      let extracted = extractJsonFromText(jsonInput);
+
+      // FASE 2: Sanitizar el string (BOM, zero-width, etc.)
+      let sanitized = sanitizeJsonString(extracted);
+
+      // FASE 3: Normalizar comillas tipográficas y guiones
+      const normalized = normalizeJsonText(sanitized);
       setNormalizedJsonText(normalized);
 
-      // Intentar parsear el JSON ya normalizado
+      // FASE 4: Detectar JSON incompleto antes de parsear
+      const incompleteError = detectIncompleteJson(normalized);
+      if (incompleteError) {
+        setError(incompleteError);
+        setLoading(false);
+        return;
+      }
+
+      // FASE 5: Intentar parsear el JSON con tolerancia a double-stringified
       let parsedJson: any;
       try {
-        parsedJson = JSON.parse(normalized);
+        parsedJson = parseJsonRobust(normalized);
       } catch (parseErr) {
         const errMsg = parseErr instanceof SyntaxError ? parseErr.message : 'Error desconocido';
+        const context = parseErr instanceof SyntaxError ? getErrorContext(normalized, parseErr) : '';
         setError(
-          `JSON inválido. Error: ${errMsg}. ` +
+          `JSON inválido. Error: ${errMsg}${context}\n\n` +
           `Si pegaste desde Word o iPhone, usa el botón "Copiar JSON normalizado" para ver el texto procesado.`
         );
+        setLoading(false);
+        return;
+      }
+
+      // FASE 6: Validar estructura (naming.filename SIEMPRE obligatorio)
+      if (!parsedJson.naming?.filename) {
+        setError('Error: El campo "naming.filename" es obligatorio.');
+        setLoading(false);
+        return;
+      }
+
+      // Detectar prefijo del archivo (primeras 2 letras del filename)
+      const filename = parsedJson.naming.filename;
+      const prefijo = filename.substring(0, 2).toUpperCase();
+
+      // FASE 7: Validar contenido solo si es AC o ACTA_REUNION
+      const requiresContent = prefijo === 'AC' || parsedJson.tipo_archivo === 'ACTA_REUNION';
+      if (requiresContent && !parsedJson.contenido) {
+        setError('Error: El campo "contenido" es obligatorio para actas de reunión (prefijo AC o tipo_archivo ACTA_REUNION).');
         setLoading(false);
         return;
       }
@@ -94,9 +237,9 @@ export default function Home() {
       // Obtener el nombre del archivo del header Content-Disposition
       const contentDisposition = response.headers.get('Content-Disposition');
       const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-      const filename = filenameMatch ? filenameMatch[1] : parsedJson.naming?.filename || 'documento.docx';
+      const downloadFilename = filenameMatch ? filenameMatch[1] : parsedJson.naming?.filename || 'documento.docx';
       
-      a.download = filename;
+      a.download = downloadFilename;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
