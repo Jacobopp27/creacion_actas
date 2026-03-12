@@ -89,41 +89,6 @@ npm install
 
 **Nota:** Si `compromisos_anteriores` o `compromisos_pactados` están vacíos, se insertará automáticamente una fila con "NO APLICA".
 
-## 🖥️ Uso
-
-### Desarrollo:
-```bash
-npm run dev
-```
-
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
-
-### Producción:
-```bash
-npm run build
-npm start
-```
-
-## 🌐 Deploy en Vercel
-
-1. Sube tu código a GitHub
-2. Conecta tu repositorio en [Vercel](https://vercel.com)
-3. **Importante:** Sube tu plantilla `acta_ac_template.docx` al directorio `/templates/` antes de hacer deploy
-
-### Estructura de archivos:
-```
-creacion_actas/
-├── src/
-│   └── app/
-│       ├── page.tsx              # UI principal
-│       └── api/
-│           └── generate/
-│               └── route.ts      # Endpoint para generar documentos
-├── templates/
-│   └── acta_ac_template.docx     # Tu plantilla Word
-├── package.json
-└── README.md
-```
 
 ## 🔧 Tecnologías
 
