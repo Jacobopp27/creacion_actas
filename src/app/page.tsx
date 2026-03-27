@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { jsonrepair } from 'jsonrepair';
 
 export default function Home() {
   const [jsonInput, setJsonInput] = useState('');
@@ -9,6 +10,11 @@ export default function Home() {
   const [success, setSuccess] = useState(false);
   const [normalizedJsonText, setNormalizedJsonText] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [repairApplied, setRepairApplied] = useState(false);
+  const [repairedJsonText, setRepairedJsonText] = useState<string | null>(null);
+  const [showRepairedJson, setShowRepairedJson] = useState(false);
+  const [copiedRepaired, setCopiedRepaired] = useState(false);
+  const [truncationWarning, setTruncationWarning] = useState<string | null>(null);
 
   /**
    * normalizeJsonText
@@ -156,9 +162,54 @@ export default function Home() {
     return null;
   };
 
+  /**
+   * repairJsonIfNeeded
+   * - Intenta reparar JSON malformado usando jsonrepair
+   * - Soluciona: trailing commas, comillas simples, comentarios, llaves sin cerrar, valores sin comillas
+   * - Retorna el string reparado y si hubo cambios
+   * - Nunca lanza error: si la reparación falla, retorna el input original
+   */
+  const repairJsonIfNeeded = (input: string): { repaired: string; wasRepaired: boolean } => {
+    try {
+      const repaired = jsonrepair(input);
+      const wasRepaired = repaired !== input;
+      return { repaired, wasRepaired };
+    } catch {
+      return { repaired: input, wasRepaired: false };
+    }
+  };
+
+  /**
+   * detectTruncation
+   * - Detecta señales de que el GPT truncó su respuesta (solo para AC)
+   * - No bloquea la generación, solo advierte al usuario
+   */
+  const detectTruncation = (parsed: any): string | null => {
+    const prefijo = parsed.naming?.filename?.substring(0, 2).toUpperCase();
+    const isAC = prefijo === 'AC' || parsed.naming?.tipo_archivo === 'ACTA_REUNION';
+    if (!isAC || !parsed.contenido) return null;
+
+    const c = parsed.contenido;
+    const warnings: string[] = [];
+
+    if (!c.temas_tratados_texto || c.temas_tratados_texto.length < 100) {
+      warnings.push('"temas_tratados_texto" está vacío o muy corto');
+    }
+    if (!c.orden_del_dia || c.orden_del_dia.length < 2) {
+      warnings.push('"orden_del_dia" tiene menos de 2 ítems');
+    }
+
+    if (warnings.length === 0) return null;
+    return `Posible respuesta truncada del GPT: ${warnings.join(' y ')}. El documento se generará, pero puede estar incompleto. Si la reunión fue larga, prueba pedir al GPT que continúe la respuesta, o divide la transcripción en partes.`;
+  };
+
   const handleGenerate = async () => {
     setError('');
     setSuccess(false);
+    setRepairApplied(false);
+    setRepairedJsonText(null);
+    setShowRepairedJson(false);
+    setTruncationWarning(null);
     setLoading(true);
 
     try {
@@ -172,23 +223,23 @@ export default function Home() {
       const normalized = normalizeJsonText(sanitized);
       setNormalizedJsonText(normalized);
 
-      // FASE 4: Detectar JSON incompleto antes de parsear
-      const incompleteError = detectIncompleteJson(normalized);
-      if (incompleteError) {
-        setError(incompleteError);
-        setLoading(false);
-        return;
+      // FASE 4: Reparar automáticamente JSON con errores de sintaxis comunes del GPT
+      const { repaired, wasRepaired } = repairJsonIfNeeded(normalized);
+      if (wasRepaired) {
+        setRepairApplied(true);
+        setRepairedJsonText(repaired);
       }
+      const jsonToParse = repaired;
 
       // FASE 5: Intentar parsear el JSON con tolerancia a double-stringified
       let parsedJson: any;
       try {
-        parsedJson = parseJsonRobust(normalized);
+        parsedJson = parseJsonRobust(jsonToParse);
       } catch (parseErr) {
         const errMsg = parseErr instanceof SyntaxError ? parseErr.message : 'Error desconocido';
-        const context = parseErr instanceof SyntaxError ? getErrorContext(normalized, parseErr) : '';
+        const context = parseErr instanceof SyntaxError ? getErrorContext(jsonToParse, parseErr) : '';
         setError(
-          `JSON inválido. Error: ${errMsg}${context}\n\n` +
+          `JSON inválido incluso después de reparación automática. Error: ${errMsg}${context}\n\n` +
           `Si pegaste desde Word o iPhone, usa el botón "Copiar JSON normalizado" para ver el texto procesado.`
         );
         setLoading(false);
@@ -212,6 +263,12 @@ export default function Home() {
         setError('Error: El campo "contenido" es obligatorio para actas de reunión (prefijo AC o tipo_archivo ACTA_REUNION).');
         setLoading(false);
         return;
+      }
+
+      // FASE 8: Detectar posible truncamiento del GPT (advertencia, no bloquea)
+      const truncWarning = detectTruncation(parsedJson);
+      if (truncWarning) {
+        setTruncationWarning(truncWarning);
       }
 
       // Llamar al API
@@ -265,6 +322,11 @@ export default function Home() {
     setSuccess(false);
     setNormalizedJsonText(null);
     setCopied(false);
+    setRepairApplied(false);
+    setRepairedJsonText(null);
+    setShowRepairedJson(false);
+    setCopiedRepaired(false);
+    setTruncationWarning(null);
   };
 
   const copyNormalizedToClipboard = async () => {
@@ -348,9 +410,10 @@ export default function Home() {
               <ul className="space-y-2 text-sm opacity-90">
                 <li>✓ Generación instantánea</li>
                 <li>✓ Formato Word (.docx)</li>
+                <li>✓ Reparación automática de JSON</li>
                 <li>✓ Normalización de comillas tipográficas</li>
+                <li>✓ Detección de respuesta truncada</li>
                 <li>✓ Plantillas personalizables</li>
-                <li>✓ Validación automática</li>
               </ul>
             </div>
           </div>
@@ -389,6 +452,63 @@ export default function Home() {
 
               {/* Status Messages */}
               <div className="px-6 pb-6 space-y-3">
+
+                {/* Banner: JSON reparado automáticamente */}
+                {repairApplied && (
+                  <div className="p-4 bg-amber-50 border-l-4 border-amber-400 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm text-amber-800 font-medium">
+                          Se detectó y reparó automáticamente JSON con formato incorrecto. El documento se generó con el JSON corregido.
+                        </p>
+                        <button
+                          onClick={() => setShowRepairedJson(prev => !prev)}
+                          className="mt-2 text-xs text-amber-700 underline hover:text-amber-900"
+                        >
+                          {showRepairedJson ? 'Ocultar JSON reparado' : 'Ver JSON reparado'}
+                        </button>
+                        {showRepairedJson && repairedJsonText && (
+                          <div className="mt-3">
+                            <textarea
+                              readOnly
+                              value={repairedJsonText}
+                              className="w-full h-48 px-3 py-2 border border-amber-300 rounded-lg font-mono text-xs bg-white resize-none"
+                            />
+                            <button
+                              onClick={async () => {
+                                await navigator.clipboard.writeText(repairedJsonText);
+                                setCopiedRepaired(true);
+                                setTimeout(() => setCopiedRepaired(false), 2000);
+                              }}
+                              className="mt-2 inline-flex items-center gap-2 text-xs px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold rounded-lg transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                              {copiedRepaired ? '✓ Copiado' : 'Copiar JSON reparado'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Banner: Posible truncamiento del GPT */}
+                {truncationWarning && (
+                  <div className="p-4 bg-orange-50 border-l-4 border-orange-500 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                      </svg>
+                      <p className="text-sm text-orange-800">{truncationWarning}</p>
+                    </div>
+                  </div>
+                )}
+
                 {error && (
                   <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-lg animate-in slide-in-from-top">
                     <div className="flex items-start gap-3">
